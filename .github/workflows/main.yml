@@ -362,3 +362,9 @@ jobs:
         kubectl get pods \
         -n ${{ env.K8S_NAMESPACE }} \
         -o wide
+
+
+
+
+
+        
