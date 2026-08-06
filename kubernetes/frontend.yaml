@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: zeeshanshaikh799/wanderlust-frontend:v1.33
+          image: zeeshanshaikh799/wanderlust-frontend:v1.34
           ports:
             - containerPort: 80   # NGINX serves on port 80
 ---
