@@ -93,3 +93,10 @@ jobs:
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/wanderlust-backend --timeout=120s || true
           kubectl -n ${{ env.K8S_NAMESPACE }} get pods -o wide
+
+
+
+
+
+
+          
