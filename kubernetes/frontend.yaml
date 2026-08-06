@@ -63,7 +63,7 @@ spec:
       containers:
         - name: frontend
 
-          image: zeeshanshaikh799/wanderlust-frontend-beta:21
+          image: zeeshanshaikh799/wanderlust-frontend-beta:22
 
           imagePullPolicy: Always
 
