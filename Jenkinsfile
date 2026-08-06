@@ -1,128 +1,163 @@
-@Library('Shared') _
 pipeline {
     agent any
-    
-    environment{
-        SONAR_HOME = tool "Sonar"
+
+    environment {
+        GITHUB_REPO = "https://github.com/Zeeshansgit/Wanderlust-project.git"
+        GITHUB_BRANCH = "main"
+        GITHUB_CREDENTIALS = "github-creds"
+
+        DOCKER_CREDENTIALS = "dockerhub-creds"
+        DOCKER_USERNAME = "zeeshanshaikh799"
+
+        BACKEND_IMAGE = "wanderlust-backend-beta"
+        FRONTEND_IMAGE = "wanderlust-frontend-beta"
+
+        IMAGE_TAG = "${BUILD_NUMBER}"
     }
-    
-    parameters {
-        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push')
-        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push')
-    }
-    
+
     stages {
-        stage("Validate Parameters") {
+
+        stage('Workspace Cleanup') {
             steps {
-                script {
-                    if (params.FRONTEND_DOCKER_TAG == '' || params.BACKEND_DOCKER_TAG == '') {
-                        error("FRONTEND_DOCKER_TAG and BACKEND_DOCKER_TAG must be provided.")
-                    }
-                }
+                cleanWs()
             }
         }
-        stage("Workspace cleanup"){
-            steps{
-                script{
-                    cleanWs()
-                }
-            }
-        }
-        
-        stage('Git: Code Checkout') {
+
+        stage('Checkout Source Code') {
             steps {
-                script{
-                    code_checkout("https://github.com/rithwiksrivastav4/Wanderlust-project.git","main")
-                }
+                git branch: "${GITHUB_BRANCH}",
+                    credentialsId: "${GITHUB_CREDENTIALS}",
+                    url: "${GITHUB_REPO}"
             }
         }
-        
-        stage("Trivy: Filesystem scan"){
-            steps{
-                script{
-                    trivy_scan()
+
+        stage('Docker Login') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${DOCKER_CREDENTIALS}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''
+                    echo $DOCKER_PASS | docker login \
+                    -u $DOCKER_USER \
+                    --password-stdin
+                    '''
                 }
             }
         }
 
-        stage("OWASP: Dependency check"){
-            steps{
-                script{
-                    owasp_dependency()
+        stage('Build Backend Image') {
+            steps {
+                dir('backend') {
+                    sh """
+                    docker build \
+                    -t ${DOCKER_USERNAME}/${BACKEND_IMAGE}:${IMAGE_TAG} .
+                    """
                 }
             }
         }
-        
-        stage("SonarQube: Code Analysis"){
-            steps{
-                script{
-                    sonarqube_analysis("Sonar","wanderlust","wanderlust")
+
+        stage('Build Frontend Image') {
+            steps {
+                dir('frontend') {
+                    sh """
+                    docker build \
+                    -t ${DOCKER_USERNAME}/${FRONTEND_IMAGE}:${IMAGE_TAG} .
+                    """
                 }
             }
         }
-        
-        stage("SonarQube: Code Quality Gates"){
-            steps{
-                script{
-                    sonarqube_code_quality()
+
+        stage('Push Docker Images') {
+            steps {
+                sh """
+                docker push ${DOCKER_USERNAME}/${BACKEND_IMAGE}:${IMAGE_TAG}
+                docker push ${DOCKER_USERNAME}/${FRONTEND_IMAGE}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Update Kubernetes Manifests') {
+            steps {
+                dir('kubernetes') {
+                    sh """
+                    sed -i "s|${DOCKER_USERNAME}/${BACKEND_IMAGE}:.*|${DOCKER_USERNAME}/${BACKEND_IMAGE}:${IMAGE_TAG}|g" backend.yaml
+
+                    sed -i "s|${DOCKER_USERNAME}/${FRONTEND_IMAGE}:.*|${DOCKER_USERNAME}/${FRONTEND_IMAGE}:${IMAGE_TAG}|g" frontend.yaml
+
+                    cat backend.yaml
+                    cat frontend.yaml
+                    """
                 }
             }
         }
-        
-        stage('Exporting environment variables') {
-            parallel{
-                stage("Backend env setup"){
-                    steps {
-                        script{
-                            dir("Automations"){
-                                sh "bash updatebackendnew.sh"
-                            }
-                        }
-                    }
-                }
-                
-                stage("Frontend env setup"){
-                    steps {
-                        script{
-                            dir("Automations"){
-                                sh "bash updatefrontendnew.sh"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage("Docker: Build Images"){
-            steps{
-                script{
-                        dir('backend'){
-                            docker_build("wanderlust-backend-beta","${params.BACKEND_DOCKER_TAG}","rithwik504")
-                        }
-                    
-                        dir('frontend'){
-                            docker_build("wanderlust-frontend-beta","${params.FRONTEND_DOCKER_TAG}","rithwik504")
-                        }
-                }
-            }
-        }
-        
-        stage("Docker: Push to DockerHub"){
-            steps{
-                script{
-                    docker_push("wanderlust-backend-beta","${params.BACKEND_DOCKER_TAG}","rithwik504") 
-                    docker_push("wanderlust-frontend-beta","${params.FRONTEND_DOCKER_TAG}","rithwik504")
+
+        stage('Commit & Push Changes') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${GITHUB_CREDENTIALS}",
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_TOKEN'
+                    )
+                ]) {
+
+                    sh """
+                    git config user.email "jenkins@wanderlust.com"
+                    git config user.name "Jenkins"
+
+                    git add kubernetes/
+
+                    git commit -m "Update image tags to ${IMAGE_TAG}" || true
+
+                    git push https://${GIT_USER}:${GIT_TOKEN}@github.com/Zeeshansgit/Wanderlust-project.git main
+                    """
                 }
             }
         }
     }
-    post{
-        success{
-            archiveArtifacts artifacts: '*.xml', followSymlinks: false
-            build job: "Wanderlust-CD", parameters: [
-                string(name: 'FRONTEND_DOCKER_TAG', value: "${params.FRONTEND_DOCKER_TAG}"),
-                string(name: 'BACKEND_DOCKER_TAG', value: "${params.BACKEND_DOCKER_TAG}")
-            ]
+
+    post {
+
+        success {
+            echo """
+=========================================
+      WANDERLUST CI/CD SUCCESS
+=========================================
+
+Build Number : ${BUILD_NUMBER}
+
+Backend Image:
+${DOCKER_USERNAME}/${BACKEND_IMAGE}:${IMAGE_TAG}
+
+Frontend Image:
+${DOCKER_USERNAME}/${FRONTEND_IMAGE}:${IMAGE_TAG}
+
+GitHub Updated Successfully
+
+ArgoCD will automatically sync
+
+=========================================
+"""
+        }
+
+        failure {
+            echo """
+=========================================
+      WANDERLUST CI/CD FAILED
+=========================================
+
+Check Jenkins Console Output
+
+=========================================
+"""
+        }
+
+        always {
+            cleanWs()
         }
     }
 }
