@@ -6,9 +6,7 @@ on:
       - master
 
 jobs:
-
   deploy:
-
     runs-on:
       - self-hosted
       - Windows
@@ -133,37 +131,24 @@ jobs:
 
 
       # --------------------------------
-      # Install / Verify PM2
+      # Verify PM2
       # --------------------------------
 
-      - name: Install and Verify PM2
+      - name: Verify PM2
         shell: powershell
         run: |
 
           Write-Host "Checking PM2..."
 
-          $pm2Command = Get-Command pm2 -ErrorAction SilentlyContinue
-
-          if ($null -eq $pm2Command) {
-
-              Write-Host "PM2 not found. Installing PM2 globally..."
-
-              npm install -g pm2
-
-          }
-          else {
-
-              Write-Host "PM2 is already installed."
-
-          }
+          pm2 -v
 
           Write-Host "PM2 location:"
 
-          Get-Command pm2
+          where.exe pm2
 
-          Write-Host "PM2 Version:"
+          Write-Host "PM2 processes:"
 
-          pm2 -v
+          pm2 list
 
 
       # --------------------------------
@@ -183,7 +168,6 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
 
               Write-Host "Existing application found."
-
               Write-Host "Restarting Wanderlust backend..."
 
               pm2 restart wanderlust-backend
@@ -192,11 +176,9 @@ jobs:
           else {
 
               Write-Host "Application not found."
-
               Write-Host "Starting Wanderlust backend..."
 
               pm2 start server.js --name wanderlust-backend
-
           }
 
           Write-Host "Saving PM2 process list..."
@@ -223,7 +205,6 @@ jobs:
               Write-Error "Nginx executable not found at $nginx"
 
               exit 1
-
           }
 
           Write-Host "Testing Nginx configuration..."
@@ -235,7 +216,6 @@ jobs:
               Write-Error "Nginx configuration test failed."
 
               exit 1
-
           }
 
           Write-Host "Nginx configuration is valid."
@@ -249,7 +229,6 @@ jobs:
               Write-Error "Nginx reload failed."
 
               exit 1
-
           }
 
           Write-Host "Nginx reloaded successfully."
@@ -274,6 +253,10 @@ jobs:
           Write-Host ""
           Write-Host "Backend Application:"
           pm2 describe wanderlust-backend
+
+          Write-Host ""
+          Write-Host "Backend Port:"
+          netstat -ano | findstr :3500
 
           Write-Host ""
           Write-Host "Nginx Configuration:"
