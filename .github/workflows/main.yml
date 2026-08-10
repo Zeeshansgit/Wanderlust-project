@@ -15,18 +15,11 @@ jobs:
 
     steps:
 
-    # -------------------------
-    # Checkout Repository
-    # -------------------------
 
     - name: Checkout Code
       uses: actions/checkout@v4
 
 
-
-    # -------------------------
-    # Setup Node.js
-    # -------------------------
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -36,20 +29,12 @@ jobs:
 
 
 
-    # -------------------------
-    # Backend Dependencies
-    # -------------------------
-
     - name: Install Backend Dependencies
       working-directory: backend
 
       run: npm install
 
 
-
-    # -------------------------
-    # Frontend Build
-    # -------------------------
 
     - name: Install Frontend Dependencies
       working-directory: frontend
@@ -64,10 +49,6 @@ jobs:
       run: npm run build
 
 
-
-    # -------------------------
-    # Deploy Backend
-    # -------------------------
 
     - name: Copy Backend Files To Server
 
@@ -87,10 +68,6 @@ jobs:
 
 
 
-    # -------------------------
-    # Deploy Frontend Build
-    # -------------------------
-
     - name: Copy Frontend Build To Server
 
       uses: appleboy/scp-action@v0.1.7
@@ -109,10 +86,6 @@ jobs:
 
 
 
-    # -------------------------
-    # Restart Backend + Nginx
-    # -------------------------
-
     - name: Restart Application
 
       uses: appleboy/ssh-action@v1
@@ -125,19 +98,12 @@ jobs:
 
         password: ${{ secrets.SERVER_PASSWORD }}
 
-
         script: |
 
           cd C:\Users\Administrator\Wanderlust-project\backend
 
           npm install
 
-
           pm2 restart wanderlust-backend
 
-
-<<<<<<< HEAD
           nginx -s reload
-=======
-          nginx -s reload
->>>>>>> 71dda3c58691f23980490138529bd35a183f8de8
