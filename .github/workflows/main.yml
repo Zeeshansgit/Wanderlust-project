@@ -136,4 +136,8 @@ jobs:
           pm2 restart wanderlust-backend
 
 
+<<<<<<< HEAD
           nginx -s reload
+=======
+          nginx -s reload
+>>>>>>> 71dda3c58691f23980490138529bd35a183f8de8
