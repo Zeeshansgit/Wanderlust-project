@@ -1,5 +1,6 @@
 name: Wanderlust Production Deployment
 
+
 on:
   push:
     branches:
@@ -19,60 +20,69 @@ jobs:
     steps:
 
 
-    # -----------------------------
+    # --------------------------------
     # Checkout Repository
-    # -----------------------------
+    # --------------------------------
 
     - name: Checkout Code
+
       uses: actions/checkout@v4
 
 
 
-    # -----------------------------
+    # --------------------------------
     # Setup Node.js
-    # -----------------------------
+    # --------------------------------
 
     - name: Setup Node.js
+
       uses: actions/setup-node@v4
 
       with:
-        node-version: 20
+        node-version: 22
+        cache: npm
 
 
 
-    # -----------------------------
+    # --------------------------------
     # Install Backend Dependencies
-    # -----------------------------
+    # --------------------------------
 
     - name: Install Backend Dependencies
+
       working-directory: backend
-      run: npm install
+
+      run: npm ci
 
 
 
-    # -----------------------------
+    # --------------------------------
     # Install Frontend Dependencies
-    # -----------------------------
+    # --------------------------------
 
     - name: Install Frontend Dependencies
+
       working-directory: frontend
-      run: npm install
+
+      run: npm ci
 
 
 
-    # -----------------------------
+    # --------------------------------
     # Build Frontend
-    # -----------------------------
+    # --------------------------------
 
     - name: Build Frontend
+
       working-directory: frontend
+
       run: npm run build
 
 
 
-    # -----------------------------
+    # --------------------------------
     # Deploy Backend
-    # -----------------------------
+    # --------------------------------
 
     - name: Deploy Backend
 
@@ -87,18 +97,22 @@ jobs:
 
         if (!(Test-Path $destination)) {
 
-          New-Item -ItemType Directory -Path $destination -Force
+            New-Item -ItemType Directory -Path $destination -Force
 
         }
 
 
-        Copy-Item "$source\*" $destination -Recurse -Force
+        Copy-Item `
+        "$source\*" `
+        $destination `
+        -Recurse `
+        -Force
 
 
 
-    # -----------------------------
+    # --------------------------------
     # Deploy Frontend
-    # -----------------------------
+    # --------------------------------
 
     - name: Deploy Frontend
 
@@ -113,18 +127,22 @@ jobs:
 
         if (!(Test-Path $destination)) {
 
-          New-Item -ItemType Directory -Path $destination -Force
+            New-Item -ItemType Directory -Path $destination -Force
 
         }
 
 
-        Copy-Item "$source\*" $destination -Recurse -Force
+        Copy-Item `
+        "$source\*" `
+        $destination `
+        -Recurse `
+        -Force
 
 
 
-    # -----------------------------
-    # Install Production Dependencies
-    # -----------------------------
+    # --------------------------------
+    # Install Backend Production Packages
+    # --------------------------------
 
     - name: Install Production Packages
 
@@ -138,17 +156,24 @@ jobs:
 
 
 
-    # -----------------------------
-    # Restart Backend PM2
-    # -----------------------------
+    # --------------------------------
+    # Restart Backend using PM2
+    # --------------------------------
 
-    - name: Restart Backend
+    - name: Restart Backend PM2
 
       shell: powershell
 
       run: |
 
+
+        # Add global npm binaries path
+
+        $env:Path += ";C:\Users\Administrator\AppData\Roaming\npm"
+
+
         cd C:\Wanderlust-project\backend
+
 
 
         pm2 describe wanderlust-backend
@@ -156,21 +181,27 @@ jobs:
 
         if ($LASTEXITCODE -eq 0) {
 
-          pm2 restart wanderlust-backend
+            Write-Host "Restarting existing application"
+
+            pm2 restart wanderlust-backend
 
         }
 
         else {
 
-          pm2 start server.js --name wanderlust-backend
+            Write-Host "Starting new application"
+
+            pm2 start server.js --name wanderlust-backend
+
+            pm2 save
 
         }
 
 
 
-    # -----------------------------
+    # --------------------------------
     # Reload Nginx
-    # -----------------------------
+    # --------------------------------
 
     - name: Reload Nginx
 
@@ -178,13 +209,19 @@ jobs:
 
       run: |
 
+
+        $env:Path += ";C:\nginx"
+
+
+        nginx -t
+
         nginx -s reload
 
 
 
-    # -----------------------------
-    # Verify Deployment
-    # -----------------------------
+    # --------------------------------
+    # Deployment Verification
+    # --------------------------------
 
     - name: Verify Deployment
 
@@ -192,6 +229,17 @@ jobs:
 
       run: |
 
+
+        $env:Path += ";C:\Users\Administrator\AppData\Roaming\npm"
+
+        $env:Path += ";C:\nginx"
+
+
+        Write-Host "Checking PM2"
+
         pm2 list
+
+
+        Write-Host "Checking Nginx"
 
         nginx -t
