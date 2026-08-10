@@ -1,39 +1,41 @@
 version: "3.8"
+
 services:
-  mongodb:
-    container_name: mongo-service
-    image: mongo:latest
-    volumes:
-      - ./backend/data:/data
-    ports:
-      - "27017:27017"
 
   backend:
-    container_name: backend
-    build: ./backend
-    env_file:
-      - ./backend/.env.docker
+    image: zeeshanshaikh799/wanderlust-backend:latest
+    container_name: wanderlust-backend
+    restart: always
+
     ports:
-      - "31100:8080"
+      - "8080:8080"
+
+    environment:
+      PORT: 8080
+      MONGODB_URI: ${MONGODB_URI}
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+
     depends_on:
-      - mongodb
+      - redis
+
 
   frontend:
-    container_name: frontend
-    build: ./frontend
-    env_file:
-      - ./frontend/.env.docker
+    image: zeeshanshaikh799/wanderlust-frontend:latest
+    container_name: wanderlust-frontend
+    restart: always
+
     ports:
-      - "5173:5173"
+      - "80:80"
+
+    depends_on:
+      - backend
+
 
   redis:
-    container_name: redis-service
-    restart: unless-stopped
-    image: redis:7.0.5-alpine 
-    expose:
-        - 6379
-    depends_on:
-      - mongodb
+    image: redis:7-alpine
+    container_name: wanderlust-redis
+    restart: always
 
-volumes:
-  data:
+    ports:
+      - "6379:6379"
