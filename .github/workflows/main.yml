@@ -81,7 +81,7 @@ jobs:
 
 
     # --------------------------------
-    # Deploy Backend
+    # Deploy Backend Files
     # --------------------------------
 
     - name: Deploy Backend
@@ -111,7 +111,7 @@ jobs:
 
 
     # --------------------------------
-    # Deploy Frontend
+    # Deploy Frontend Build
     # --------------------------------
 
     - name: Deploy Frontend
@@ -144,7 +144,7 @@ jobs:
     # Install Backend Production Packages
     # --------------------------------
 
-    - name: Install Production Packages
+    - name: Install Production Dependencies
 
       shell: powershell
 
@@ -167,33 +167,48 @@ jobs:
       run: |
 
 
-        # Add global npm binaries path
-
-        $env:Path += ";C:\Users\Administrator\AppData\Roaming\npm"
+        $pm2 = "C:\Users\Administrator\AppData\Roaming\npm\pm2.cmd"
 
 
         cd C:\Wanderlust-project\backend
 
 
+        Write-Host "PM2 Version"
 
-        pm2 describe wanderlust-backend
+        & $pm2 -v
+
+
+
+        Write-Host "Checking Application"
+
+
+
+        & $pm2 describe wanderlust-backend
+
 
 
         if ($LASTEXITCODE -eq 0) {
 
-            Write-Host "Restarting existing application"
 
-            pm2 restart wanderlust-backend
+            Write-Host "Restarting Existing Application"
+
+
+            & $pm2 restart wanderlust-backend
+
 
         }
 
         else {
 
-            Write-Host "Starting new application"
 
-            pm2 start server.js --name wanderlust-backend
+            Write-Host "Starting New Application"
 
-            pm2 save
+
+            & $pm2 start server.js --name wanderlust-backend
+
+
+            & $pm2 save
+
 
         }
 
@@ -210,17 +225,25 @@ jobs:
       run: |
 
 
-        $env:Path += ";C:\nginx"
+        $nginx = "C:\nginx\nginx.exe"
 
 
-        nginx -t
+        Write-Host "Testing Nginx Configuration"
 
-        nginx -s reload
+
+        & $nginx -t
+
+
+
+        Write-Host "Reloading Nginx"
+
+
+        & $nginx -s reload
 
 
 
     # --------------------------------
-    # Deployment Verification
+    # Verify Deployment
     # --------------------------------
 
     - name: Verify Deployment
@@ -230,16 +253,18 @@ jobs:
       run: |
 
 
-        $env:Path += ";C:\Users\Administrator\AppData\Roaming\npm"
+        $pm2 = "C:\Users\Administrator\AppData\Roaming\npm\pm2.cmd"
 
-        $env:Path += ";C:\nginx"
-
-
-        Write-Host "Checking PM2"
-
-        pm2 list
+        $nginx = "C:\nginx\nginx.exe"
 
 
-        Write-Host "Checking Nginx"
 
-        nginx -t
+        Write-Host "PM2 Status"
+
+        & $pm2 list
+
+
+
+        Write-Host "Nginx Status"
+
+        & $nginx -t
