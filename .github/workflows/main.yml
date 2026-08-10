@@ -1,5 +1,6 @@
 name: Wanderlust Production Deployment
 
+
 on:
   push:
     branches:
@@ -10,16 +11,27 @@ jobs:
 
   deploy:
 
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
 
 
     steps:
 
 
+    # -----------------------------
+    # Checkout Repository
+    # -----------------------------
+
     - name: Checkout Code
       uses: actions/checkout@v4
 
 
+
+    # -----------------------------
+    # Setup Node.js
+    # -----------------------------
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -29,81 +41,167 @@ jobs:
 
 
 
+    # -----------------------------
+    # Install Backend Dependencies
+    # -----------------------------
+
     - name: Install Backend Dependencies
+
       working-directory: backend
 
       run: npm install
 
 
 
+    # -----------------------------
+    # Install Frontend Dependencies
+    # -----------------------------
+
     - name: Install Frontend Dependencies
+
       working-directory: frontend
 
       run: npm install
 
 
 
+    # -----------------------------
+    # Build React Frontend
+    # -----------------------------
+
     - name: Build Frontend
+
       working-directory: frontend
 
       run: npm run build
 
 
 
-    - name: Copy Backend Files To Server
+    # -----------------------------
+    # Deploy Backend Files
+    # -----------------------------
 
-      uses: appleboy/scp-action@v0.1.7
+    - name: Deploy Backend
 
-      with:
+      shell: powershell
 
-        host: ${{ secrets.SERVER_HOST }}
+      run: |
 
-        username: ${{ secrets.SERVER_USER }}
+        $source = "${{ github.workspace }}\backend"
 
-        password: ${{ secrets.SERVER_PASSWORD }}
-
-        source: "backend/*"
-
-        target: "C:/Users/Administrator/Wanderlust-project"
+        $destination = "C:\Users\Administrator\Wanderlust-project\backend"
 
 
+        if (!(Test-Path $destination)) {
 
-    - name: Copy Frontend Build To Server
+          New-Item -ItemType Directory -Path $destination
 
-      uses: appleboy/scp-action@v0.1.7
+        }
 
-      with:
 
-        host: ${{ secrets.SERVER_HOST }}
-
-        username: ${{ secrets.SERVER_USER }}
-
-        password: ${{ secrets.SERVER_PASSWORD }}
-
-        source: "frontend/dist/*"
-
-        target: "C:/Users/Administrator/Wanderlust-project/frontend/dist"
+        Copy-Item "$source\*" $destination -Recurse -Force
 
 
 
-    - name: Restart Application
+    # -----------------------------
+    # Deploy Frontend Build
+    # -----------------------------
 
-      uses: appleboy/ssh-action@v1
+    - name: Deploy Frontend
 
-      with:
+      shell: powershell
 
-        host: ${{ secrets.SERVER_HOST }}
+      run: |
 
-        username: ${{ secrets.SERVER_USER }}
+        $source = "${{ github.workspace }}\frontend\dist"
 
-        password: ${{ secrets.SERVER_PASSWORD }}
+        $destination = "C:\Users\Administrator\Wanderlust-project\frontend\dist"
 
-        script: |
 
-          cd C:\Users\Administrator\Wanderlust-project\backend
+        if (!(Test-Path $destination)) {
 
-          npm install
+          New-Item -ItemType Directory -Path $destination
 
-          pm2 restart wanderlust-backend
+        }
 
-          nginx -s reload
+
+        Copy-Item "$source\*" $destination -Recurse -Force
+
+
+
+    # -----------------------------
+    # Install Production Packages
+    # -----------------------------
+
+    - name: Install Backend Production Packages
+
+      shell: powershell
+
+      run: |
+
+        cd C:\Users\Administrator\Wanderlust-project\backend
+
+        npm install --production
+
+
+
+    # -----------------------------
+    # Restart Node Backend
+    # -----------------------------
+
+    - name: Restart Backend Using PM2
+
+      shell: powershell
+
+      run: |
+
+
+        cd C:\Users\Administrator\Wanderlust-project\backend
+
+
+        pm2 describe wanderlust-backend
+
+
+        if ($LASTEXITCODE -eq 0) {
+
+            pm2 restart wanderlust-backend
+
+        }
+
+        else {
+
+            pm2 start server.js --name wanderlust-backend
+
+        }
+
+
+
+    # -----------------------------
+    # Reload Nginx
+    # -----------------------------
+
+    - name: Reload Nginx
+
+      shell: powershell
+
+      run: |
+
+
+        nginx -s reload
+
+
+
+    # -----------------------------
+    # Deployment Verification
+    # -----------------------------
+
+    - name: Verify Deployment
+
+      shell: powershell
+
+      run: |
+
+
+        pm2 list
+
+        nginx -t
