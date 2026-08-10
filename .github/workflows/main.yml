@@ -1,6 +1,5 @@
 name: Wanderlust Production Deployment
 
-
 on:
   push:
     branches:
@@ -46,9 +45,7 @@ jobs:
     # -----------------------------
 
     - name: Install Backend Dependencies
-
       working-directory: backend
-
       run: npm install
 
 
@@ -58,27 +55,23 @@ jobs:
     # -----------------------------
 
     - name: Install Frontend Dependencies
-
       working-directory: frontend
-
       run: npm install
 
 
 
     # -----------------------------
-    # Build React Frontend
+    # Build Frontend
     # -----------------------------
 
     - name: Build Frontend
-
       working-directory: frontend
-
       run: npm run build
 
 
 
     # -----------------------------
-    # Deploy Backend Files
+    # Deploy Backend
     # -----------------------------
 
     - name: Deploy Backend
@@ -89,12 +82,12 @@ jobs:
 
         $source = "${{ github.workspace }}\backend"
 
-        $destination = "C:\Users\Administrator\Wanderlust-project\backend"
+        $destination = "C:\Wanderlust-project\backend"
 
 
         if (!(Test-Path $destination)) {
 
-          New-Item -ItemType Directory -Path $destination
+          New-Item -ItemType Directory -Path $destination -Force
 
         }
 
@@ -104,7 +97,7 @@ jobs:
 
 
     # -----------------------------
-    # Deploy Frontend Build
+    # Deploy Frontend
     # -----------------------------
 
     - name: Deploy Frontend
@@ -115,12 +108,12 @@ jobs:
 
         $source = "${{ github.workspace }}\frontend\dist"
 
-        $destination = "C:\Users\Administrator\Wanderlust-project\frontend\dist"
+        $destination = "C:\Wanderlust-project\frontend\dist"
 
 
         if (!(Test-Path $destination)) {
 
-          New-Item -ItemType Directory -Path $destination
+          New-Item -ItemType Directory -Path $destination -Force
 
         }
 
@@ -130,33 +123,32 @@ jobs:
 
 
     # -----------------------------
-    # Install Production Packages
+    # Install Production Dependencies
     # -----------------------------
 
-    - name: Install Backend Production Packages
+    - name: Install Production Packages
 
       shell: powershell
 
       run: |
 
-        cd C:\Users\Administrator\Wanderlust-project\backend
+        cd C:\Wanderlust-project\backend
 
         npm install --production
 
 
 
     # -----------------------------
-    # Restart Node Backend
+    # Restart Backend PM2
     # -----------------------------
 
-    - name: Restart Backend Using PM2
+    - name: Restart Backend
 
       shell: powershell
 
       run: |
 
-
-        cd C:\Users\Administrator\Wanderlust-project\backend
+        cd C:\Wanderlust-project\backend
 
 
         pm2 describe wanderlust-backend
@@ -164,13 +156,13 @@ jobs:
 
         if ($LASTEXITCODE -eq 0) {
 
-            pm2 restart wanderlust-backend
+          pm2 restart wanderlust-backend
 
         }
 
         else {
 
-            pm2 start server.js --name wanderlust-backend
+          pm2 start server.js --name wanderlust-backend
 
         }
 
@@ -186,13 +178,12 @@ jobs:
 
       run: |
 
-
         nginx -s reload
 
 
 
     # -----------------------------
-    # Deployment Verification
+    # Verify Deployment
     # -----------------------------
 
     - name: Verify Deployment
@@ -200,7 +191,6 @@ jobs:
       shell: powershell
 
       run: |
-
 
         pm2 list
 
