@@ -1,11 +1,9 @@
 name: Wanderlust Production Deployment
 
-
 on:
   push:
     branches:
       - master
-
 
 jobs:
 
@@ -16,255 +14,272 @@ jobs:
       - Windows
       - X64
 
-
     steps:
 
+      # --------------------------------
+      # Checkout Repository
+      # --------------------------------
 
-    # --------------------------------
-    # Checkout Repository
-    # --------------------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Checkout Code
 
-      uses: actions/checkout@v4
+      # --------------------------------
+      # Setup Node.js
+      # --------------------------------
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
 
-    # --------------------------------
-    # Setup Node.js
-    # --------------------------------
+      # --------------------------------
+      # Install Backend Dependencies
+      # --------------------------------
 
-    - name: Setup Node.js
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
 
-      uses: actions/setup-node@v4
 
-      with:
-        node-version: 22
-        cache: npm
+      # --------------------------------
+      # Install Frontend Dependencies
+      # --------------------------------
 
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
 
 
-    # --------------------------------
-    # Install Backend Dependencies
-    # --------------------------------
+      # --------------------------------
+      # Build Frontend
+      # --------------------------------
 
-    - name: Install Backend Dependencies
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
 
-      working-directory: backend
 
-      run: npm ci
+      # --------------------------------
+      # Deploy Backend Files
+      # --------------------------------
 
+      - name: Deploy Backend
+        shell: powershell
+        run: |
 
+          $source = "${{ github.workspace }}\backend"
+          $destination = "C:\Wanderlust-project\backend"
 
-    # --------------------------------
-    # Install Frontend Dependencies
-    # --------------------------------
+          Write-Host "Deploying backend..."
 
-    - name: Install Frontend Dependencies
+          if (!(Test-Path $destination)) {
+              New-Item -ItemType Directory -Path $destination -Force
+          }
 
-      working-directory: frontend
+          Copy-Item `
+            "$source\*" `
+            $destination `
+            -Recurse `
+            -Force `
+            -Exclude "node_modules"
 
-      run: npm ci
+          Write-Host "Backend deployment completed."
 
 
+      # --------------------------------
+      # Deploy Frontend Build
+      # --------------------------------
 
-    # --------------------------------
-    # Build Frontend
-    # --------------------------------
+      - name: Deploy Frontend
+        shell: powershell
+        run: |
 
-    - name: Build Frontend
+          $source = "${{ github.workspace }}\frontend\dist"
+          $destination = "C:\Wanderlust-project\frontend\dist"
 
-      working-directory: frontend
+          Write-Host "Deploying frontend..."
 
-      run: npm run build
+          if (!(Test-Path $destination)) {
+              New-Item -ItemType Directory -Path $destination -Force
+          }
 
+          Copy-Item `
+            "$source\*" `
+            $destination `
+            -Recurse `
+            -Force
 
+          Write-Host "Frontend deployment completed."
 
-    # --------------------------------
-    # Deploy Backend Files
-    # --------------------------------
 
-    - name: Deploy Backend
+      # --------------------------------
+      # Install Production Dependencies
+      # --------------------------------
 
-      shell: powershell
+      - name: Install Production Dependencies
+        shell: powershell
+        run: |
 
-      run: |
+          Set-Location "C:\Wanderlust-project\backend"
 
-        $source = "${{ github.workspace }}\backend"
+          Write-Host "Installing production dependencies..."
 
-        $destination = "C:\Wanderlust-project\backend"
+          npm install --omit=dev
 
+          Write-Host "Production dependencies installed."
 
-        if (!(Test-Path $destination)) {
 
-            New-Item -ItemType Directory -Path $destination -Force
+      # --------------------------------
+      # Install / Verify PM2
+      # --------------------------------
 
-        }
+      - name: Install and Verify PM2
+        shell: powershell
+        run: |
 
+          Write-Host "Checking PM2..."
 
-        Copy-Item `
-        "$source\*" `
-        $destination `
-        -Recurse `
-        -Force
+          $pm2Command = Get-Command pm2 -ErrorAction SilentlyContinue
 
+          if ($null -eq $pm2Command) {
 
+              Write-Host "PM2 not found. Installing PM2 globally..."
 
-    # --------------------------------
-    # Deploy Frontend Build
-    # --------------------------------
+              npm install -g pm2
 
-    - name: Deploy Frontend
+          }
+          else {
 
-      shell: powershell
+              Write-Host "PM2 is already installed."
 
-      run: |
+          }
 
-        $source = "${{ github.workspace }}\frontend\dist"
+          Write-Host "PM2 location:"
 
-        $destination = "C:\Wanderlust-project\frontend\dist"
+          Get-Command pm2
 
+          Write-Host "PM2 Version:"
 
-        if (!(Test-Path $destination)) {
+          pm2 -v
 
-            New-Item -ItemType Directory -Path $destination -Force
 
-        }
+      # --------------------------------
+      # Restart Backend using PM2
+      # --------------------------------
 
+      - name: Restart Backend PM2
+        shell: powershell
+        run: |
 
-        Copy-Item `
-        "$source\*" `
-        $destination `
-        -Recurse `
-        -Force
+          Set-Location "C:\Wanderlust-project\backend"
 
+          Write-Host "Checking PM2 application..."
 
+          pm2 describe wanderlust-backend
 
-    # --------------------------------
-    # Install Backend Production Packages
-    # --------------------------------
+          if ($LASTEXITCODE -eq 0) {
 
-    - name: Install Production Dependencies
+              Write-Host "Existing application found."
 
-      shell: powershell
+              Write-Host "Restarting Wanderlust backend..."
 
-      run: |
+              pm2 restart wanderlust-backend
 
-        cd C:\Wanderlust-project\backend
+          }
+          else {
 
-        npm install --production
+              Write-Host "Application not found."
 
+              Write-Host "Starting Wanderlust backend..."
 
+              pm2 start server.js --name wanderlust-backend
 
-    # --------------------------------
-    # Restart Backend using PM2
-    # --------------------------------
+          }
 
-    - name: Restart Backend PM2
+          Write-Host "Saving PM2 process list..."
 
-      shell: powershell
+          pm2 save
 
-      run: |
+          Write-Host "PM2 deployment completed."
 
 
-        $pm2 = "C:\Users\Administrator\AppData\Roaming\npm\pm2.cmd"
+      # --------------------------------
+      # Reload Nginx
+      # --------------------------------
 
+      - name: Reload Nginx
+        shell: powershell
+        run: |
 
-        cd C:\Wanderlust-project\backend
+          $nginx = "C:\nginx\nginx.exe"
 
+          Write-Host "Checking Nginx executable..."
 
-        Write-Host "PM2 Version"
+          if (!(Test-Path $nginx)) {
 
-        & $pm2 -v
+              Write-Error "Nginx executable not found at $nginx"
 
+              exit 1
 
+          }
 
-        Write-Host "Checking Application"
+          Write-Host "Testing Nginx configuration..."
 
+          & $nginx -t
 
+          if ($LASTEXITCODE -ne 0) {
 
-        & $pm2 describe wanderlust-backend
+              Write-Error "Nginx configuration test failed."
 
+              exit 1
 
+          }
 
-        if ($LASTEXITCODE -eq 0) {
+          Write-Host "Nginx configuration is valid."
 
+          Write-Host "Reloading Nginx..."
 
-            Write-Host "Restarting Existing Application"
+          & $nginx -s reload
 
+          if ($LASTEXITCODE -ne 0) {
 
-            & $pm2 restart wanderlust-backend
+              Write-Error "Nginx reload failed."
 
+              exit 1
 
-        }
+          }
 
-        else {
+          Write-Host "Nginx reloaded successfully."
 
 
-            Write-Host "Starting New Application"
+      # --------------------------------
+      # Verify Deployment
+      # --------------------------------
 
+      - name: Verify Deployment
+        shell: powershell
+        run: |
 
-            & $pm2 start server.js --name wanderlust-backend
+          Write-Host "================================="
+          Write-Host "Deployment Verification"
+          Write-Host "================================="
 
+          Write-Host ""
+          Write-Host "PM2 Status:"
+          pm2 list
 
-            & $pm2 save
+          Write-Host ""
+          Write-Host "Backend Application:"
+          pm2 describe wanderlust-backend
 
+          Write-Host ""
+          Write-Host "Nginx Configuration:"
+          & "C:\nginx\nginx.exe" -t
 
-        }
-
-
-
-    # --------------------------------
-    # Reload Nginx
-    # --------------------------------
-
-    - name: Reload Nginx
-
-      shell: powershell
-
-      run: |
-
-
-        $nginx = "C:\nginx\nginx.exe"
-
-
-        Write-Host "Testing Nginx Configuration"
-
-
-        & $nginx -t
-
-
-
-        Write-Host "Reloading Nginx"
-
-
-        & $nginx -s reload
-
-
-
-    # --------------------------------
-    # Verify Deployment
-    # --------------------------------
-
-    - name: Verify Deployment
-
-      shell: powershell
-
-      run: |
-
-
-        $pm2 = "C:\Users\Administrator\AppData\Roaming\npm\pm2.cmd"
-
-        $nginx = "C:\nginx\nginx.exe"
-
-
-
-        Write-Host "PM2 Status"
-
-        & $pm2 list
-
-
-
-        Write-Host "Nginx Status"
-
-        & $nginx -t
+          Write-Host ""
+          Write-Host "================================="
+          Write-Host "Deployment Completed Successfully"
+          Write-Host "================================="
