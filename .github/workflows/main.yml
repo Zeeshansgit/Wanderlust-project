@@ -1,0 +1,176 @@
+name: Deploy Wanderlust to EKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  K8S_NAMESPACE: wanderlust
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+
+      # ---------------------------------------------
+      # STEP 1 - CHECKOUT REPOSITORY
+      # ---------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------
+      # STEP 2 - VERIFY TOOLS
+      # ---------------------------------------------
+      - name: Verify Installed Tools
+        run: |
+          git --version
+          docker --version
+          aws --version
+          terraform --version
+          kubectl version --client
+
+      # ---------------------------------------------
+      # STEP 3 - LOGIN TO DOCKER HUB
+      # ---------------------------------------------
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ---------------------------------------------
+      # STEP 4 - SETUP DOCKER BUILDX
+      # ---------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ---------------------------------------------
+      # STEP 5 - BUILD FRONTEND IMAGE
+      # ---------------------------------------------
+      - name: Build Frontend Image
+        run: |
+          docker build `
+            -t "${{ secrets.DOCKERHUB_USERNAME }}/wanderlust-frontend:${{ github.sha }}" `
+            ./frontend
+
+      # ---------------------------------------------
+      # STEP 6 - BUILD BACKEND IMAGE
+      # ---------------------------------------------
+      - name: Build Backend Image
+        run: |
+          docker build `
+            -t "${{ secrets.DOCKERHUB_USERNAME }}/wanderlust-backend:${{ github.sha }}" `
+            ./backend
+
+      # ---------------------------------------------
+      # STEP 7 - PUSH FRONTEND IMAGE
+      # ---------------------------------------------
+      - name: Push Frontend Image
+        run: |
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/wanderlust-frontend:${{ github.sha }}"
+
+      # ---------------------------------------------
+      # STEP 8 - PUSH BACKEND IMAGE
+      # ---------------------------------------------
+      - name: Push Backend Image
+        run: |
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/wanderlust-backend:${{ github.sha }}"
+
+      # ---------------------------------------------
+      # STEP 9 - VERIFY AWS ACCOUNT
+      # ---------------------------------------------
+      - name: Verify AWS Identity
+        run: |
+          aws sts get-caller-identity
+
+      # ---------------------------------------------
+      # STEP 10 - CONFIGURE KUBECONFIG
+      # ---------------------------------------------
+      - name: Configure EKS Access
+        run: |
+          aws eks update-kubeconfig `
+            --region "${{ env.AWS_REGION }}" `
+            --name "${{ env.CLUSTER_NAME }}"
+
+      # ---------------------------------------------
+      # STEP 11 - CREATE NAMESPACE
+      # ---------------------------------------------
+      - name: Create Namespace
+        run: |
+          kubectl create namespace ${{ env.K8S_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      # ---------------------------------------------
+      # STEP 12 - CREATE IMAGE PULL SECRET
+      # ---------------------------------------------
+      - name: Create Docker Hub Secret
+        run: |
+          kubectl create secret docker-registry dockerhub-creds `
+            --docker-server=https://index.docker.io/v1/ `
+            --docker-username="${{ secrets.DOCKERHUB_USERNAME }}" `
+            --docker-password="${{ secrets.DOCKERHUB_TOKEN }}" `
+            --docker-email="${{ secrets.DOCKERHUB_EMAIL }}" `
+            -n ${{ env.K8S_NAMESPACE }} `
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # ---------------------------------------------
+      # STEP 13 - APPLY KUBERNETES MANIFESTS
+      # ---------------------------------------------
+      - name: Deploy Kubernetes Manifests
+        run: |
+          kubectl apply -f kubernetes/ -n ${{ env.K8S_NAMESPACE }}
+
+      # ---------------------------------------------
+      # STEP 14 - UPDATE FRONTEND IMAGE
+      # ---------------------------------------------
+      - name: Update Frontend Deployment
+        run: |
+          kubectl set image deployment/frontend-deployment `
+            frontend="${{ secrets.DOCKERHUB_USERNAME }}/wanderlust-frontend:${{ github.sha }}" `
+            -n ${{ env.K8S_NAMESPACE }}
+
+      # ---------------------------------------------
+      # STEP 15 - UPDATE BACKEND IMAGE
+      # ---------------------------------------------
+      - name: Update Backend Deployment
+        run: |
+          kubectl set image deployment/backend-deployment `
+            backend="${{ secrets.DOCKERHUB_USERNAME }}/wanderlust-backend:${{ github.sha }}" `
+            -n ${{ env.K8S_NAMESPACE }}
+
+      # ---------------------------------------------
+      # STEP 16 - WAIT FOR FRONTEND
+      # ---------------------------------------------
+      - name: Wait for Frontend Rollout
+        run: |
+          kubectl rollout status deployment/frontend-deployment `
+            -n ${{ env.K8S_NAMESPACE }} `
+            --timeout=300s
+
+      # ---------------------------------------------
+      # STEP 17 - WAIT FOR BACKEND
+      # ---------------------------------------------
+      - name: Wait for Backend Rollout
+        run: |
+          kubectl rollout status deployment/backend-deployment `
+            -n ${{ env.K8S_NAMESPACE }} `
+            --timeout=300s
+
+      # ---------------------------------------------
+      # STEP 18 - VERIFY DEPLOYMENT
+      # ---------------------------------------------
+      - name: Show Cluster Status
+        run: |
+          kubectl get nodes
+          kubectl get all -n ${{ env.K8S_NAMESPACE }}

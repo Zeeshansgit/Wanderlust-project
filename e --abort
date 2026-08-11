@@ -1,0 +1,418 @@
+[33m9464383[m added wanderlust project
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mnew file mode 100644[m
+[1mindex 0000000..dcf7089[m
+[1m--- /dev/null[m
+[1m+++ b/.gitignore[m
+[36m@@ -0,0 +1,33 @@[m
+[32m+[m[32m# Local .terraform directories[m
+[32m+[m[32m**/.terraform/*[m
+[32m+[m
+[32m+[m[32m# .tfstate files[m
+[32m+[m[32m*.tfstate[m
+[32m+[m[32m*.tfstate.*[m
+[32m+[m
+[32m+[m[32m# Crash log files[m
+[32m+[m[32mcrash.log[m
+[32m+[m[32mcrash.*.log[m
+[32m+[m
+[32m+[m[32m# Exclude all .tfvars files, which are likely to contain sensitive data, such as[m
+[32m+[m[32m# password, private keys, and other secrets. These should not be part of version[m[41m [m
+[32m+[m[32m# control as they are data points which are potentially sensitive and subject[m[41m [m
+[32m+[m[32m# to change depending on the environment.[m
+[32m+[m[32m*.tfvars.json[m
+[32m+[m
+[32m+[m[32m# Ignore override files as they are usually used to override resources locally and so[m
+[32m+[m[32m# are not checked in[m
+[32m+[m[32moverride.tf[m
+[32m+[m[32moverride.tf.json[m
+[32m+[m[32m*_override.tf[m
+[32m+[m[32m*_override.tf.json[m
+[32m+[m
+[32m+[m[32m# Include override files you do wish to add to version control using negated pattern[m
+[32m+[m[32m# !example_override.tf[m
+[32m+[m
+[32m+[m[32m# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan[m
+[32m+[m[32m# example: *tfplan*[m
+[32m+[m
+[32m+[m[32m# Ignore CLI configuration files[m
+[32m+[m[32m.terraformrc[m
+[32m+[m[32mterraform.rc[m
+[1mdiff --git a/Assets/DevSecOps+GitOps.gif b/Assets/DevSecOps+GitOps.gif[m
+[1mnew file mode 100644[m
+[1mindex 0000000..9424d56[m
+Binary files /dev/null and b/Assets/DevSecOps+GitOps.gif differ
+[1mdiff --git a/Assets/README.md b/Assets/README.md[m
+[1mnew file mode 100644[m
+[1mindex 0000000..8b13789[m
+[1m--- /dev/null[m
+[1m+++ b/Assets/README.md[m
+[36m@@ -0,0 +1 @@[m
+[32m+[m
+[1mdiff --git a/Automations/updatebackendnew.sh b/Automations/updatebackendnew.sh[m
+[1mnew file mode 100644[m
+[1mindex 0000000..b1e12ab[m
+[1m--- /dev/null[m
+[1m+++ b/Automations/updatebackendnew.sh[m
+[36m@@ -0,0 +1,22 @@[m
+[32m+[m[32m#!/bin/bash[m
+[32m+[m
+[32m+[m[32m# Set the Instance ID and path to the .env file[m
+[32m+[m[32mINSTANCE_ID="i-030da7d31a1dbbffc"[m
+[32m+[m
+[32m+[m[32m# Retrieve the public IP address of the specified EC2 instance[m
+[32m+[m[32mipv4_address=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)[m
+[32m+[m
+[32m+[m[32m# Path to the .env file[m
+[32m+[m[32mfile_to_find="../backend/.env.docker"[m
+[32m+[m
+[32m+[m[32m# Check the current FRONTEND_URL in the .env file[m
+[32m+[m[32mcurrent_url=$(sed -n "4p" $file_to_find)[m
+[32m+[m
+[32m+[m[32m# Update the .env file if the IP address has changed[m
+[32m+[m[32mif [[ "$current_url" != "FRONTEND_URL=\"http://${ipv4_address}:5173\"" ]]; then[m
+[32m+[m[32m    if [ -f $file_to_find ]; then[m
+[32m+[m[32m        sed -i -e "s|FRONTEND_URL.*|FRONTEND_URL=\"http://${ipv4_address}:5173\"|g" $file_to_find[m
+[32m+[m[32m    else[m
+[32m+[m[32m        echo "ERROR: File not found."[m
+[32m+[m[32m    fi[m
+[32m+[m[32mfi[m
+[1mdiff --git a/Automations/updatefrontendnew.sh b/Automations/updatefrontendnew.sh[m
+[1mnew file mode 100644[m
+[1mindex 0000000..7ba7734[m
+[1m--- /dev/null[m
+[1m+++ b/Automations/updatefrontendnew.sh[m
+[36m@@ -0,0 +1,22 @@[m
+[32m+[m[32m#!/bin/bash[m
+[32m+[m
+[32m+[m[32m# Set the Instance ID and path to the .env file[m
+[32m+[m[32mINSTANCE_ID="i-030da7d31a1dbbffc"[m
+[32m+[m
+[32m+[m[32m# Retrieve the public IP address of the specified EC2 instance[m
+[32m+[m[32mipv4_address=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)[m
+[32m+[m
+[32m+[m[32m# Path to the .env file[m
+[32m+[m[32mfile_to_find="../frontend/.env.docker"[m
+[32m+[m
+[32m+[m[32m# Check the current VITE_API_PATH in the .env file[m
+[32m+[m[32mcurrent_url=$(cat $file_to_find)[m
+[32m+[m
+[32m+[m[32m# Update the .env file if the IP address has changed[m
+[32m+[m[32mif [[ "$current_url" != "VITE_API_PATH=\"http://${ipv4_address}:31100\"" ]]; then[m
+[32m+[m[32m    if [ -f $file_to_find ]; then[m
+[32m+[m[32m        sed -i -e "s|VITE_API_PATH.*|VITE_API_PATH=\"http://${ipv4_address}:31100\"|g" $file_to_find[m
+[32m+[m[32m    else[m
+[32m+[m[32m        echo "ERROR: File not found."[m
+[32m+[m[32m    fi[m
+[32m+[m[32mfi[m
+[1mdiff --git a/GitOps/Jenkinsfile b/GitOps/Jenkinsfile[m
+[1mnew file mode 100644[m
+[1mindex 0000000..62eaaac[m
+[1m--- /dev/null[m
+[1m+++ b/GitOps/Jenkinsfile[m
+[36m@@ -0,0 +1,125 @@[m
+[32m+[m[32m@Library('Shared') _[m
+[32m+[m[32mpipeline {[m
+[32m+[m[32m    agent {label 'Node'}[m
+[32m+[m[41m    [m
+[32m+[m[32m    parameters {[m
+[32m+[m[32m        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Frontend Docker tag of the image built by the CI job')[m
+[32m+[m[32m        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Backend Docker tag of the image built by the CI job')[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    stages {[m
+[32m+[m[32m        stage("Workspace cleanup"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    cleanWs()[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage('Git: Code Checkout') {[m
+[32m+[m[32m            steps {[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    code_checkout("https://github.com/LondheShubham153/Wanderlust-Mega-Project.git","main")[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage('Verify: Docker Image Tags') {[m
+[32m+[m[32m            steps {[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    echo "FRONTEND_DOCKER_TAG: ${params.FRONTEND_DOCKER_TAG}"[m
+[32m+[m[32m                    echo "BACKEND_DOCKER_TAG: ${params.BACKEND_DOCKER_TAG}"[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[41m        [m
+[32m+[m[32m        stage("Update: Kubernetes manifests"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    dir('kubernetes'){[m
+[32m+[m[32m                        sh """[m
+[32m+[m[32m                            sed -i -e s/wanderlust-backend-beta.*/wanderlust-backend-beta:${params.BACKEND_DOCKER_TAG}/g backend.yaml[m
+[32m+[m[32m                        """[m
+[32m+[m[32m                    }[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    dir('kubernetes'){[m
+[32m+[m[32m                        sh """[m
+[32m+[m[32m                            sed -i -e s/wanderlust-frontend-beta.*/wanderlust-frontend-beta:${params.FRONTEND_DOCKER_TAG}/g frontend.yaml[m
+[32m+[m[32m                        """[m
+[32m+[m[32m                    }[m
+[32m+[m[41m                    [m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage("Git: Code update and push to GitHub"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    withCredentials([gitUsernamePassword(credentialsId: 'Github-cred', gitToolName: 'Default')]) {[m
+[32m+[m[32m                        sh '''[m
+[32m+[m[32m                        echo "Checking repository status: "[m
+[32m+[m[32m                        git status[m
+[32m+[m[41m                    [m
+[32m+[m[32m                        echo "Adding changes to git: "[m
+[32m+[m[32m                        git add .[m
+[32m+[m[41m                        [m
+[32m+[m[32m                        echo "Commiting changes: "[m
+[32m+[m[32m                        git commit -m "Updated environment variables"[m
+[32m+[m[41m                        [m
+[32m+[m[32m                        echo "Pushing changes to github: "[m
+[32m+[m[32m                        git push https://github.com/LondheShubham153/Wanderlust-Mega-Project.git main[m
+[32m+[m[32m                    '''[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m  post {[m
+[32m+[m[32m        success {[m
+[32m+[m[32m            script {[m
+[32m+[m[32m                emailext attachLog: true,[m
+[32m+[m[32m                from: 'trainwithshubham@gmail.com',[m
+[32m+[m[32m                subject: "Wanderlust Application has been updated and deployed - '${currentBuild.result}'",[m
+[32m+[m[32m                body: """[m
+[32m+[m[32m                    <html>[m
+[32m+[m[32m                    <body>[m
+[32m+[m[32m                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">[m
+[32m+[m[32m                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">[m
+[32m+[m[32m                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                        <div style="background-color: #87CEEB; padding: 10px; margin-bottom: 10px;">[m
+[32m+[m[32m                            <p style="color: black; font-weight: bold;">URL: ${env.BUILD_URL}</p>[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                    </body>[m
+[32m+[m[32m                    </html>[m
+[32m+[m[32m            """,[m
+[32m+[m[32m            to: 'trainwithshubham@gmail.com',[m
+[32m+[m[32m            mimeType: 'text/html'[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m      failure {[m
+[32m+[m[32m            script {[m
+[32m+[m[32m                emailext attachLog: true,[m
+[32m+[m[32m                from: 'trainwithshubham@gmail.com',[m
+[32m+[m[32m                subject: "Wanderlust Application build failed - '${currentBuild.result}'",[m
+[32m+[m[32m                body: """[m
+[32m+[m[32m                    <html>[m
+[32m+[m[32m                    <body>[m
+[32m+[m[32m                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">[m
+[32m+[m[32m                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">[m
+[32m+[m[32m                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                    </body>[m
+[32m+[m[32m                    </html>[m
+[32m+[m[32m            """,[m
+[32m+[m[32m            to: 'trainwithshubham@gmail.com',[m
+[32m+[m[32m            mimeType: 'text/html'[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/Jenkinsfile b/Jenkinsfile[m
+[1mnew file mode 100644[m
+[1mindex 0000000..d0ee36c[m
+[1m--- /dev/null[m
+[1m+++ b/Jenkinsfile[m
+[36m@@ -0,0 +1,128 @@[m
+[32m+[m[32m@Library('Shared') _[m
+[32m+[m[32mpipeline {[m
+[32m+[m[32m    agent {label 'Node'}[m
+[32m+[m[41m    [m
+[32m+[m[32m    environment{[m
+[32m+[m[32m        SONAR_HOME = tool "Sonar"[m
+[32m+[m[32m    }[m
+[32m+[m[41m    [m
+[32m+[m[32m    parameters {[m
+[32m+[m[32m        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push')[m
+[32m+[m[32m        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push')[m
+[32m+[m[32m    }[m
+[32m+[m[41m    [m
+[32m+[m[32m    stages {[m
+[32m+[m[32m        stage("Validate Parameters") {[m
+[32m+[m[32m            steps {[m
+[32m+[m[32m                script {[m
+[32m+[m[32m                    if (params.FRONTEND_DOCKER_TAG == '' || params.BACKEND_DOCKER_TAG == '') {[m
+[32m+[m[32m                        error("FRONTEND_DOCKER_TAG and BACKEND_DOCKER_TAG must be provided.")[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m        stage("Workspace cleanup"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    cleanWs()[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage('Git: Code Checkout') {[m
+[32m+[m[32m            steps {[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    code_checkout("https://github.com/LondheShubham153/Wanderlust-Mega-Project.git","main")[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage("Trivy: Filesystem scan"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    trivy_scan()[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        stage("OWASP: Dependency check"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    owasp_dependency()[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage("SonarQube: Code Analysis"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    sonarqube_analysis("Sonar","wanderlust","wanderlust")[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage("SonarQube: Code Quality Gates"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    sonarqube_code_quality()[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage('Exporting environment variables') {[m
+[32m+[m[32m            parallel{[m
+[32m+[m[32m                stage("Backend env setup"){[m
+[32m+[m[32m                    steps {[m
+[32m+[m[32m                        script{[m
+[32m+[m[32m                            dir("Automations"){[m
+[32m+[m[32m                                sh "bash updatebackendnew.sh"[m
+[32m+[m[32m                            }[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[41m                [m
+[32m+[m[32m                stage("Frontend env setup"){[m
+[32m+[m[32m                    steps {[m
+[32m+[m[32m                        script{[m
+[32m+[m[32m                            dir("Automations"){[m
+[32m+[m[32m                                sh "bash updatefrontendnew.sh"[m
+[32m+[m[32m                            }[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage("Docker: Build Images"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                        dir('backend'){[m
+[32m+[m[32m                            docker_build("wanderlust-backend-beta","${params.BACKEND_DOCKER_TAG}","rithwik504")[m
+[32m+[m[32m                        }[m
+[32m+[m[41m                    [m
+[32m+[m[32m                        dir('frontend'){[m
+[32m+[m[32m                            docker_build("wanderlust-frontend-beta","${params.FRONTEND_DOCKER_TAG}","rithwik504")[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        stage("Docker: Push to DockerHub"){[m
+[32m+[m[32m            steps{[m
+[32m+[m[32m                script{[m
+[32m+[m[32m                    docker_push("wanderlust-backend-beta","${params.BACKEND_DOCKER_TAG}","rithwik504")[m[41m [m
+[32m+[m[32m                    docker_push("wanderlust-frontend-beta","${params.FRONTEND_DOCKER_TAG}","rithwik504")[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m    post{[m
+[32m+[m[32m        success{[m
+[32m+[m[32m            archiveArtifacts artifacts: '*.xml', followSymlinks: false[m
+[32m+[m[32m            build job: "Wanderlust-CD", parameters: [[m
+[32m+[m[32m                string(name: 'FRONTEND_DOCKER_TAG', value: "${params.FRONTEND_DOCKER_TAG}"),[m
+[32m+[m[32m                string(name: 'BACKEND_DOCKER_TAG', value: "${params.BACKEND_DOCKER_TAG}")[m
+[32m+[m[32m            ][m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/LICENSE b/LICENSE[m
+[1mnew file mode 100644[m
+[1mindex 0000000..08b2f30[m
+[1m--- /dev/null[m
+[1m+++ b/LICENSE[m
+[36m@@ -0,0 +1,21 @@[m
+[32m+[m[32mMIT License[m
+[32m+[m
+[32m+[m[32mCopyright (c) 2023 Krishna R Acharya[m
+[32m+[m
+[32m+[m[32mPermission is hereby granted, free of charge, to any person obtaining a copy[m
+[32m+[m[32mof this software and associated documentation files (the "Software"), to deal[m
+[32m+[m[32min the Software without restriction, including without limitation the rights[m
+[32m+[m[32mto use, copy, modify, merge, publish, distribute, sublicense, and/or sell[m
+[32m+[m[32mcopies of the Software, and to permit persons to whom the Software is[m
+[32m+[m[32mfurnished to do so, subject to the following conditions:[m
+[32m+[m
+[32m+[m[32mThe above copyright notice and this permission notice shall be included in all[m
+[32m+[m[32mcopies or substantial portions of the Software.[m
+[32m+[m
+[32m+[m[32mTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR[m
+[32m+[m[32mIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,[m
+[32m+[m[32mFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE[m
+[32m+[m[32mAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER[m
+[32m+[m[32mLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,[m
+[32m+[m[32mOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE[m
+[32m+[m[32mSOFTWARE.[m
+[1mdiff --git a/README.md b/README.md[m
+[1mnew file mode 100644[m
+[1mindex 0000000..9bb0606[m
+[1m--- /dev/null[m
+[1m+++ b/README.md[m
+[36m@@ -0,0 +1,528 @@[m
+[32m+[m[32m# Wanderlust - Your Ultimate Travel Blog 🌍✈️[m
+[32m+[m
+[32m+[m[32mWanderLust is a simple MERN travel blog website ✈ This project is aimed to help people to contribute in open source, upskill in react and also master git.[m
+[32m+[m
+[32m+[m[32m![Preview Image](https://github.com/krishnaacharyaa/wanderlust/assets/116620586/17ba9da6-225f-481d-87c0-5d5a010a9538)[m
+[32m+[m[32m#[m
+[32m+[m
+[32m+[m[32m# Wanderlust Mega Project End to End Implementation[m
+[32m+[m
+[32m+[m[32m### In this demo, we will see how to deploy an end to end three tier MERN stack application on EKS cluster.[m
+[32m+[m[32m#[m
+[32m+[m[32m### <mark>Project Deployment Flow:</mark>[m
+[32m+[m[32m<img src="https://g
